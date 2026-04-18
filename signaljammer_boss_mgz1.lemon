@@ -1,0 +1,98 @@
+/*
+	Signal Jammer over MGZ1 Boss
+	Replaces Tunnelbot with Signal Jammer from Sonic 3 & Tenna
+	Target Version: Sonic 3 A.I.R. v26.03.28.0
+*/
+
+// Global variables for Signal Jammer (matching signaljammer.lemon)
+// Note: These should ideally be defined in a way that doesn't conflict if both mods are active,
+// but for a replacement mod, we use the same names to maintain compatibility with the original logic.
+
+//# address-hook(0x088568) end(0x08856c)
+function void fn088568()
+{
+	// Initialize Signal Jammer instead of Tunnelbot
+	if (InitBoss(0x088572))
+		return
+
+	Tenna.boss.signalJammer.Initalize_MGZ1()
+}
+
+// Custom initialization for MGZ1 context
+function void Tenna.boss.signalJammer.Initalize_MGZ1()
+{
+	objA0.update_address = 0x088572
+	
+	// Set initial position - usually off-screen or at the boss trigger point
+	objA0.position.x.u16 = camera.position.x.u16 + getScreenWidth() + 100
+	objA0.position.y.u16 = camera.position.y.u16 + getScreenHeight() / 2
+	
+	objA0.box_size.x = 32
+	objA0.box_size.y = 32
+	objA0.collision_attributes = collision.size.16x16
+	
+	// Setup attributes similar to original Signal Jammer
+	objA0.sprite_attributes = (sprite_attribute.PRIORITY | 0x06bc)
+	objA0.render_flags = render_flag.WORLD
+	objA0.sprite_priority = 0x100
+	
+	// Initialize state variables
+	Tenna.boss.signalJammer.defeated = false
+	Tenna.boss.signalJammer.state = 0
+	Tenna.boss.signalJammer.stateTimer = 0
+	Tenna.boss.signalJammer.stateRepeat = 0
+	Tenna.boss.signalJammer.flipFlag = false
+	
+	Tenna.boss.signalJammer.legFrontXOffset = 0
+	Tenna.boss.signalJammer.legFrontYOffset = 0
+	Tenna.boss.signalJammer.legBackXOffset = 0
+	Tenna.boss.signalJammer.legBackYOffset = 0
+	
+	Tenna.boss.signalJammer.maxDrones = 1
+	Tenna.boss.signalJammer.currentDrones = 0
+	Tenna.boss.signalJammer.droneDelayTimer = 255
+	Tenna.boss.signalJammer.droneDoorOpenTimer = 0
+	Tenna.boss.signalJammer.defeatedDrones = 0
+	
+	boss.remaining_hits = 8
+	level.boss_encounter = 1
+	
+	// Start boss music
+	if (allocDynamicObjectStd())
+	{
+		objA1.update_address = 0x085b30
+		u8[A1 + 0x2c] = MUSIC_MINIBOSS_2
+	}
+}
+
+//# address-hook(0x088572) end(0x088584)
+function void fn088572()
+{
+	// Use Signal Jammer's base update logic instead of Tunnelbot's state machine
+	Tenna.boss.signalJammer.BaseUpdate()
+	
+	// Check for defeat
+	if (boss.remaining_hits == 0 && !Tenna.boss.signalJammer.defeated)
+	{
+		Tenna.boss.signalJammer.defeated = true
+		objA0.update_address = 0x0887ca // Trigger MGZ1 boss defeat sequence (Signpost etc.)
+	}
+}
+
+// Override the defeat function to ensure proper transition in MGZ1
+//# address-hook(0x0887ca) end(0x0887d4)
+function void fn0887ca()
+{
+	SetupAsSignpostSpawner()
+
+	// Spawn Signal Jammer style debris or MGZ1 debris
+	// Here we use the original MGZ1 debris for consistency with the zone's end
+	spawnChildObject(0x08894c, 0x00, 0, 0)
+	spawnChildObject(0x08894c, 0x02, -28, 0)
+	spawnChildObject(0x08894c, 0x04, 28, 0)
+	spawnChildObject(0x08894c, 0x06, -28, -22)
+	spawnChildObject(0x08894c, 0x08, 28, -22)
+	
+	// Stop boss music
+	level.boss_encounter = 0
+}
